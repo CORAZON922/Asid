@@ -1,351 +1,90 @@
-﻿#include <iostream>
+#include <iostream>
 #include <vector>
 #include <string>
 #include <algorithm>
-#include <cmath>
+
+enum Color { RED, BLACK };
 
 template <typename T>
-class AVLTree {
+class RBTree {
 private:
     struct Node {
         T data;
+        Color color;
         Node* left;
         Node* right;
-        int height;
+        Node* parent;
 
-        Node(const T& value) : data(value), left(nullptr), right(nullptr), height(1) {}
+        Node(const T& value)
+            : data(value), color(RED), left(nullptr), right(nullptr), parent(nullptr) {
+        }
     };
 
     Node* root;
-
-public:
-    AVLTree() : root(nullptr) {}
-    ~AVLTree() { clear(root); }
+    Node* TNULL;  
 
 private:
-   
     void clear(Node* node);
-    int getHeight(Node* node) const;
-    int getBalanceFactor(Node* node) const;
-    void updateHeight(Node* node);
+    void initializeNULLNode();
 
-   
-    Node* rotateRight(Node* y);
-    Node* rotateLeft(Node* x);
-    Node* balance(Node* node);
+    void leftRotate(Node* x);
+    void rightRotate(Node* x);
+    void fixInsert(Node* k);
+    void fixDelete(Node* x);
+    void transplant(Node* u, Node* v);
 
-    
     Node* insert(Node* node, const T& value);
     Node* remove(Node* node, const T& value);
-    Node* findMin(Node* node) const;
-    bool search(Node* node, const T& value) const;
+    Node* minimum(Node* node);
+    Node* searchTreeHelper(Node* node, const T& value) const;
 
     void inorder(Node* node) const;
     void preorder(Node* node) const;
     void postorder(Node* node) const;
 
-    void printLevel(Node* node, int level, int spaces, bool left) const;
+    
+    void printTreeHelper(Node* node, int space, bool last) const;
+    int getBlackHeight(Node* node) const;
 
 public:
+    RBTree();
+    ~RBTree();
+
     void insert(const T& value);
     void remove(const T& value);
     bool search(const T& value) const;
-    bool isEmpty() const { return root == nullptr; }
 
     void displayInorder() const;
     void displayPreorder() const;
     void displayPostorder() const;
     void displayTree() const;
 
-    int getTreeHeight() const { return getHeight(root); }
-    void displayBalanceInfo() const;
+    bool isEmpty() const { return root == TNULL; }
+    void displayRBProperties() const;
+   
 };
 
 
 template <typename T>
-int AVLTree<T>::getHeight(Node* node) const {
-    return node ? node->height : 0;
+RBTree<T>::RBTree() {
+    TNULL = new Node(T());  
+    TNULL->color = BLACK;   
+    TNULL->left = nullptr;
+    TNULL->right = nullptr;
+    root = TNULL;  
 }
 
 template <typename T>
-int AVLTree<T>::getBalanceFactor(Node* node) const {
-    return node ? getHeight(node->left) - getHeight(node->right) : 0;
-}
-
-template <typename T>
-void AVLTree<T>::updateHeight(Node* node) {
-    if (node) {
-        node->height = std::max(getHeight(node->left), getHeight(node->right)) + 1;
-    }
-}
-
-
-template <typename T>
-typename AVLTree<T>::Node* AVLTree<T>::rotateRight(Node* y) {
-    Node* x = y->left;
-    Node* T2 = x->right;
-
-    x->right = y;
-    y->left = T2;
-
-    updateHeight(y);
-    updateHeight(x);
-
-    return x;
-}
-
-
-template <typename T>
-typename AVLTree<T>::Node* AVLTree<T>::rotateLeft(Node* x) {
-    Node* y = x->right;
-    Node* T2 = y->left;
-
-
-    y->left = x;
-    x->right = T2;
-
-    updateHeight(x);
-    updateHeight(y);
-
-    return y;
-}
-
-
-template <typename T>
-typename AVLTree<T>::Node* AVLTree<T>::balance(Node* node) {
-    if (!node) return node;
-
-    updateHeight(node);
-    int balanceFactor = getBalanceFactor(node);
-
-    if (balanceFactor > 1 && getBalanceFactor(node->left) >= 0) {
-        std::cout << "  -> Right rotation at node " << node->data << std::endl;
-        return rotateRight(node);
-    }
-
-  
-    if (balanceFactor > 1 && getBalanceFactor(node->left) < 0) {
-        std::cout << "  -> Left-Right rotation at node " << node->data << std::endl;
-        node->left = rotateLeft(node->left);
-        return rotateRight(node);
-    }
-
-
-    if (balanceFactor < -1 && getBalanceFactor(node->right) <= 0) {
-        std::cout << "  -> Left rotation at node " << node->data << std::endl;
-        return rotateLeft(node);
-    }
-
-  
-    if (balanceFactor < -1 && getBalanceFactor(node->right) > 0) {
-        std::cout << "  -> Right-Left rotation at node " << node->data << std::endl;
-        node->right = rotateRight(node->right);
-        return rotateLeft(node);
-    }
-
-    return node;
-}
-
-
-template <typename T>
-typename AVLTree<T>::Node* AVLTree<T>::insert(Node* node, const T& value) {
-    if (!node) {
-        return new Node(value);
-    }
-
-    if (value < node->data) {
-        node->left = insert(node->left, value);
-    }
-    else if (value > node->data) {
-        node->right = insert(node->right, value);
-    }
-    else {
-       
-        return node;
-    }
-
-
-    return balance(node);
-}
-
-template <typename T>
-void AVLTree<T>::insert(const T& value) {
-    std::cout << "Вставка " << value << ":" << std::endl;
-    root = insert(root, value);
-    displayBalanceInfo();
-}
-
-
-template <typename T>
-typename AVLTree<T>::Node* AVLTree<T>::findMin(Node* node) const {
-    while (node && node->left) {
-        node = node->left;
-    }
-    return node;
-}
-
-
-template <typename T>
-typename AVLTree<T>::Node* AVLTree<T>::remove(Node* node, const T& value) {
-    if (!node) {
-        return node;
-    }
-
-    if (value < node->data) {
-        node->left = remove(node->left, value);
-    }
-    else if (value > node->data) {
-        node->right = remove(node->right, value);
-    }
-    else {
-        
-        if (!node->left || !node->right) {
-            Node* temp = node->left ? node->left : node->right;
-
-            if (!temp) {
-                
-                temp = node;
-                node = nullptr;
-            }
-            else {
-               
-                *node = *temp; 
-            }
-            delete temp;
-        }
-        else {
-            
-            Node* temp = findMin(node->right);
-            node->data = temp->data;
-            node->right = remove(node->right, temp->data);
-        }
-    }
-
-   
-    if (!node) {
-        return node;
-    }
-
-    
-    return balance(node);
-}
-
-template <typename T>
-void AVLTree<T>::remove(const T& value) {
-    std::cout << "\nУдаление " << value << ":" << std::endl;
-    root = remove(root, value);
-    displayBalanceInfo();
-}
-
-template <typename T>
-bool AVLTree<T>::search(Node* node, const T& value) const {
-    if (!node) {
-        return false;
-    }
-
-    if (value == node->data) {
-        return true;
-    }
-    else if (value < node->data) {
-        return search(node->left, value);
-    }
-    else {
-        return search(node->right, value);
-    }
-}
-
-template <typename T>
-bool AVLTree<T>::search(const T& value) const {
-    return search(root, value);
-}
-
-
-template <typename T>
-void AVLTree<T>::inorder(Node* node) const {
-    if (node) {
-        inorder(node->left);
-        std::cout << node->data << "(" << getBalanceFactor(node) << ") ";
-        inorder(node->right);
-    }
-}
-
-template <typename T>
-void AVLTree<T>::preorder(Node* node) const {
-    if (node) {
-        std::cout << node->data << "(" << getBalanceFactor(node) << ") ";
-        preorder(node->left);
-        preorder(node->right);
-    }
-}
-
-template <typename T>
-void AVLTree<T>::postorder(Node* node) const {
-    if (node) {
-        postorder(node->left);
-        postorder(node->right);
-        std::cout << node->data << "(" << getBalanceFactor(node) << ") ";
-    }
-}
-
-template <typename T>
-void AVLTree<T>::displayInorder() const {
-    std::cout << "Inorder (с баланс-факторами): ";
-    inorder(root);
-    std::cout << std::endl;
-}
-
-template <typename T>
-void AVLTree<T>::displayPreorder() const {
-    std::cout << "Preorder (с баланс-факторами): ";
-    preorder(root);
-    std::cout << std::endl;
-}
-
-template <typename T>
-void AVLTree<T>::displayPostorder() const {
-    std::cout << "Postorder (с баланс-факторами): ";
-    postorder(root);
-    std::cout << std::endl;
+RBTree<T>::~RBTree() {
+    clear(root);
+    delete TNULL;
 }
 
 
 
 template <typename T>
-void AVLTree<T>::displayTree() const {
-    std::cout << "\nAVL Дерево (вертикальный вид):\n";
-    std::cout << "===============================\n";
-    printLevel(root, 0, 0, true);
-    std::cout << "===============================\n";
-}
-
-template <typename T>
-void AVLTree<T>::printLevel(Node* node, int level, int spaces, bool left) const {
-    if (!node) {
-        return;
-    }
-
-    printLevel(node->right, level + 1, spaces + 6, false);
-
-
-    std::cout << std::string(spaces, ' ');
-    if (level > 0) {
-        std::cout << (left ? "└── " : "┌── ");
-    }
-    std::cout << node->data << "[h=" << node->height
-  
-    printLevel(node->left, level + 1, spaces + 6, true);
-}
-
-
-template <typename T>
-void AVLTree<T>::displayBalanceInfo() const {
-    std::cout << "Высота дерева: " << getTreeHeight() << std::endl;
-}
-
-
-template <typename T>
-void AVLTree<T>::clear(Node* node) {
-    if (node) {
+void RBTree<T>::clear(Node* node) {
+    if (node != TNULL) {
         clear(node->left);
         clear(node->right);
         delete node;
@@ -353,40 +92,473 @@ void AVLTree<T>::clear(Node* node) {
 }
 
 
-int main() {
-    AVLTree<int> avl;
+template <typename T>
+void RBTree<T>::leftRotate(Node* x) {
+    Node* y = x->right;  
 
-    std::cout << "=== AVL ДЕРЕВО (СБАЛАНСИРОВАННОЕ БИНАРНОЕ ДЕРЕВО ПОИСКА) ===\n";
+    x->right = y->left;
+
+    if (y->left != TNULL) {
+        y->left->parent = x;
+    }
+
+    y->parent = x->parent;  
+
+    if (x->parent == nullptr) {  
+        root = y;
+    }
+    else if (x == x->parent->left) {  
+        x->parent->left = y;
+    }
+    else { 
+        x->parent->right = y;
+    }
+
+    y->left = x; 
+    x->parent = y;
+}
+
+template <typename T>
+void RBTree<T>::rightRotate(Node* x) {
+    Node* y = x->left; 
+
+    x->left = y->right;  
+
+    if (y->right != TNULL) {
+        y->right->parent = x;
+    }
+
+    y->parent = x->parent;  
+
+    if (x->parent == nullptr) {  
+        root = y;
+    }
+    else if (x == x->parent->right) { 
+        x->parent->right = y;
+    }
+    else {  
+        x->parent->left = y;
+    }
+
+    y->right = x;
+    x->parent = y;
+}
 
 
-    std::cout << "\n1. ДЕМОНСТРАЦИЯ БАЛАНСИРОВКИ ПРИ ВСТАВКЕ:\n";
+template <typename T>
+void RBTree<T>::fixInsert(Node* k) {
+    Node* u; 
 
-    std::cout << "\na) Вставляем 10, 20, 30 (Right Right case -> Left rotation):\n";
-    avl.insert(10);
-    avl.displayTree();
-    avl.insert(20);
-    avl.displayTree();
-    avl.insert(30);
-    avl.displayTree();
+    while (k->parent != nullptr && k->parent->color == RED) {
+        if (k->parent == k->parent->parent->right) {
+           
+            u = k->parent->parent->left;  
 
-    std::cout << "\nb) Вставляем 5, 4 (Left Left case -> Right rotation):\n";
-    avl.insert(5);
-    avl.displayTree();
-    avl.insert(4);
-    avl.displayTree();
+            if (u->color == RED) {
+                
+                u->color = BLACK;
+                k->parent->color = BLACK;
+                k->parent->parent->color = RED;
+                k = k->parent->parent;
+            }
+            else {
+                if (k == k->parent->left) {
+                   
+                    k = k->parent;
+                    rightRotate(k);
+                }
 
-    std::cout << "\nc) Вставляем 15, 25 (создаем Right Left case):\n";
-    avl.insert(15);
-    avl.displayTree();
-    avl.insert(25);
-    avl.displayTree();
+                k->parent->color = BLACK;
+                k->parent->parent->color = RED;
+                leftRotate(k->parent->parent);
+            }
+        }
+        else {
+          
+            u = k->parent->parent->right;  
 
-    std::cout << "\nd) Вставляем 35, 40, 45 (Right Right case):\n";
-    avl.insert(35);
-    avl.displayTree();
-    avl.insert(40);
-    avl.displayTree();
-    avl.insert(45);
-    avl.displayTree();
+            if (u->color == RED) {
+                
+                u->color = BLACK;
+                k->parent->color = BLACK;
+                k->parent->parent->color = RED;
+                k = k->parent->parent;
+            }
+            else {
+                if (k == k->parent->right) {
+                    
+                    k = k->parent;
+                    leftRotate(k);
+                }
+               
+                k->parent->color = BLACK;
+                k->parent->parent->color = RED;
+                rightRotate(k->parent->parent);
+            }
+        }
 
-   
+        if (k == root) {
+            break;
+        }
+    }
+
+    root->color = BLACK;  
+}
+
+
+template <typename T>
+void RBTree<T>::transplant(Node* u, Node* v) {
+    if (u->parent == nullptr) {
+        root = v;
+    }
+    else if (u == u->parent->left) {
+        u->parent->left = v;
+    }
+    else {
+        u->parent->right = v;
+    }
+    v->parent = u->parent;
+}
+
+
+template <typename T>
+typename RBTree<T>::Node* RBTree<T>::minimum(Node* node) {
+    while (node->left != TNULL) {
+        node = node->left;
+    }
+    return node;
+}
+
+template <typename T>
+void RBTree<T>::fixDelete(Node* x) {
+    Node* s;  
+
+    while (x != root && x->color == BLACK) {
+        if (x == x->parent->left) {
+            s = x->parent->right;
+
+            if (s->color == RED) {
+                
+                s->color = BLACK;
+                x->parent->color = RED;
+                leftRotate(x->parent);
+                s = x->parent->right;
+            }
+
+            if (s->left->color == BLACK && s->right->color == BLACK) {
+              
+                s->color = RED;
+                x = x->parent;
+            }
+            else {
+                if (s->right->color == BLACK) {
+                   
+                    s->left->color = BLACK;
+                    s->color = RED;
+                    rightRotate(s);
+                    s = x->parent->right;
+                }
+                
+                s->color = x->parent->color;
+                x->parent->color = BLACK;
+                s->right->color = BLACK;
+                leftRotate(x->parent);
+                x = root;
+            }
+        }
+        else {
+         
+            s = x->parent->left;
+
+            if (s->color == RED) {
+                s->color = BLACK;
+                x->parent->color = RED;
+                rightRotate(x->parent);
+                s = x->parent->left;
+            }
+
+            if (s->right->color == BLACK && s->left->color == BLACK) {
+                s->color = RED;
+                x = x->parent;
+            }
+            else {
+                if (s->left->color == BLACK) {
+                    s->right->color = BLACK;
+                    s->color = RED;
+                    leftRotate(s);
+                    s = x->parent->left;
+                }
+                s->color = x->parent->color;
+                x->parent->color = BLACK;
+                s->left->color = BLACK;
+                rightRotate(x->parent);
+                x = root;
+            }
+        }
+    }
+    x->color = BLACK;
+}
+
+
+template <typename T>
+typename RBTree<T>::Node* RBTree<T>::insert(Node* node, const T& value) {
+    Node* parent = nullptr;
+    Node* current = root;
+
+    while (current != TNULL) {
+        parent = current;
+        if (value < current->data) {
+            current = current->left;
+        }
+        else if (value > current->data) {
+            current = current->right;
+        }
+        else {
+            return node;
+        }
+    }
+
+    Node* newNode = new Node(value);
+    newNode->left = TNULL;
+    newNode->right = TNULL;
+    newNode->parent = parent;
+
+    if (parent == nullptr) {
+        root = newNode;
+    }
+    else if (value < parent->data) {
+        parent->left = newNode;
+    }
+    else {
+        parent->right = newNode;
+    }
+
+    if (newNode->parent == nullptr) {
+        newNode->color = BLACK;
+        return newNode;
+    }
+
+    if (newNode->parent->parent == nullptr) {
+        return newNode;
+    }
+
+    fixInsert(newNode);
+    return newNode;
+}
+
+template <typename T>
+void RBTree<T>::insert(const T& value) {
+    std::cout << "Вставка " << value << std::endl;
+    insert(root, value);
+}
+
+
+template <typename T>
+typename RBTree<T>::Node* RBTree<T>::searchTreeHelper(Node* node, const T& value) const {
+    if (node == TNULL || value == node->data) {
+        return node;
+    }
+
+    if (value < node->data) {
+        return searchTreeHelper(node->left, value);
+    }
+    return searchTreeHelper(node->right, value);
+}
+
+template <typename T>
+bool RBTree<T>::search(const T& value) const {
+    Node* result = searchTreeHelper(root, value);
+    return result != TNULL;
+}
+
+template <typename T>
+typename RBTree<T>::Node* RBTree<T>::remove(Node* node, const T& value) {
+    Node* z = TNULL;
+    Node* x, * y;
+
+    while (node != TNULL) {
+        if (node->data == value) {
+            z = node;
+        }
+
+        if (node->data <= value) {
+            node = node->right;
+        }
+        else {
+            node = node->left;
+        }
+    }
+
+    if (z == TNULL) {
+        std::cout << "Элемент " << value << " не найден" << std::endl;
+        return root;
+    }
+
+    y = z;
+    Color yOriginalColor = y->color;
+
+    if (z->left == TNULL) {
+        x = z->right;
+        transplant(z, z->right);
+    }
+    else if (z->right == TNULL) {
+        x = z->left;
+        transplant(z, z->left);
+    }
+    else {
+        y = minimum(z->right);
+        yOriginalColor = y->color;
+        x = y->right;
+
+        if (y->parent == z) {
+            x->parent = y;
+        }
+        else {
+            transplant(y, y->right);
+            y->right = z->right;
+            y->right->parent = y;
+        }
+
+        transplant(z, y);
+        y->left = z->left;
+        y->left->parent = y;
+        y->color = z->color;
+    }
+
+    delete z;
+
+    if (yOriginalColor == BLACK) {
+        fixDelete(x);
+    }
+
+    return root;
+}
+
+template <typename T>
+void RBTree<T>::remove(const T& value) {
+    std::cout << "Удаление " << value << std::endl;
+    root = remove(root, value);
+}
+
+
+template <typename T>
+void RBTree<T>::inorder(Node* node) const {
+    if (node != TNULL) {
+        inorder(node->left);
+        std::cout << node->data << "(" << (node->color == RED ? "R" : "B") << ") ";
+        inorder(node->right);
+    }
+}
+
+template <typename T>
+void RBTree<T>::preorder(Node* node) const {
+    if (node != TNULL) {
+        std::cout << node->data << "(" << (node->color == RED ? "R" : "B") << ") ";
+        preorder(node->left);
+        preorder(node->right);
+    }
+}
+
+template <typename T>
+void RBTree<T>::postorder(Node* node) const {
+    if (node != TNULL) {
+        postorder(node->left);
+        postorder(node->right);
+        std::cout << node->data << "(" << (node->color == RED ? "R" : "B") << ") ";
+    }
+}
+
+template <typename T>
+void RBTree<T>::displayInorder() const {
+    std::cout << "Inorder (R-красный, B-черный): ";
+    inorder(root);
+    std::cout << std::endl;
+}
+
+template <typename T>
+void RBTree<T>::displayPreorder() const {
+    std::cout << "Preorder (R-красный, B-черный): ";
+    preorder(root);
+    std::cout << std::endl;
+}
+
+template <typename T>
+void RBTree<T>::displayPostorder() const {
+    std::cout << "Postorder (R-красный, B-черный): ";
+    postorder(root);
+    std::cout << std::endl;
+}
+
+
+template <typename T>
+void RBTree<T>::printTreeHelper(Node* node, int space, bool last) const {
+    if (node != TNULL) {
+        space += 10;
+
+        printTreeHelper(node->right, space, false);
+
+        std::cout << std::endl;
+        for (int i = 10; i < space; i++) {
+            std::cout << " ";
+        }
+
+        std::cout << node->data;
+        if (node->color == RED) {
+            std::cout << "[R]";
+        }
+        else {
+            std::cout << "[B]";
+        }
+
+        if (last) {
+            std::cout << " ──┐";
+        }
+        else {
+            std::cout << " ──┤";
+        }
+        std::cout << std::endl;
+
+        printTreeHelper(node->left, space, true);
+    }
+}
+
+template <typename T>
+void RBTree<T>::displayTree() const {
+    std::cout << "\nКрасно-черное дерево:\n";
+    std::cout << "=====================\n";
+    if (root == TNULL) {
+        std::cout << "Дерево пустое\n";
+    }
+    else {
+        printTreeHelper(root, 0, true);
+    }
+    std::cout << "=====================\n";
+}
+
+
+template <typename T>
+int RBTree<T>::getBlackHeight(Node* node) const {
+    int blackHeight = 0;
+    while (node != TNULL) {
+        if (node->color == BLACK) {
+            blackHeight++;
+        }
+        node = node->left;
+    }
+    return blackHeight;
+}
+
+
+template <typename T>
+void RBTree<T>::displayRBProperties() const {
+    std::cout << "\nСвойства RB-дерева:\n";
+    std::cout << "1. Корень: " << (root == TNULL ? "пустой" : std::to_string(root->data))
+        << ", цвет: " << (root->color == RED ? "КРАСНЫЙ (нарушение!)" : "ЧЕРНЫЙ") << std::endl;
+
+    if (root != TNULL) {
+        std::cout << "2. Черная высота: " << getBlackHeight(root) << std::endl;
+    }
+}
+
+
+
